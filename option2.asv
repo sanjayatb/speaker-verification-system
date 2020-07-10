@@ -1,0 +1,597 @@
+function varargout = option2(varargin)
+gui_Singleton = 1;
+gui_State = struct('gui_Name',       mfilename, ...
+    'gui_Singleton',  gui_Singleton, ...
+    'gui_OpeningFcn', @option2_OpeningFcn, ...
+    'gui_OutputFcn',  @option2_OutputFcn, ...
+    'gui_LayoutFcn',  [] , ...
+    'gui_Callback',   []);
+if nargin && ischar(varargin{1})
+    gui_State.gui_Callback = str2func(varargin{1});
+end
+
+if nargout
+    [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
+else
+    gui_mainfcn(gui_State, varargin{:});
+end
+% End initialization code - DO NOT EDIT
+
+
+% --- Executes just before option2 is made visible.
+function option2_OpeningFcn(hObject, eventdata, handles, varargin)
+
+handles.output = hObject;
+handles.pathname = '';
+set(handles.Evidance_popupmenu,  'Enable', 'off' );
+set(handles.Suspect_popupmenu,  'Enable', 'off' );
+set(handles.Verifypushbutton,  'Enable', 'off' );
+set(handles.Reportpushbutton,  'Enable', 'off' );
+set(handles.Selectfiles,  'Enable', 'off');
+set(handles.CreateUBMpushbutton,  'Enable', 'off');
+set(handles.AddFilespushbutton,  'Enable',  'off');
+set(handles.Removepushbutton,  'Enable',  'off');
+set(handles.Addallpushbutton,  'Enable',  'off');
+set(handles.RemoveAllpushbutton,  'Enable', 'off');
+handles.pathofcase = '';
+% Update handles structure
+guidata(hObject, handles);
+
+
+% --- Outputs from this function are returned to the command line.
+function varargout = option2_OutputFcn(hObject, eventdata, handles)
+varargout{1} = handles.output;
+
+% --- Executes on button press in Verifypushbutton.
+function Verifypushbutton_Callback(hObject, eventdata, handles)
+
+% try
+M = HashStore();
+if (isKey(M.hTable,handles.case_number))
+    key = M.hTable(handles.case_number);
+    Evi = key.Evidence;
+    Sus = key.Option2.Suspects;
+    
+    if (isKey(Evi,handles.evidence_filename))
+        if (isKey(Sus,handles.suspect_filename))
+            suspect = Sus(handles.suspect_filename);
+            evidence = Evi(handles.evidence_filename);
+                    
+            table_path = [pwd '\Table.mat'];
+                        
+            ubm = key.Option2.UBM;
+            Table = load(table_path);
+            score = ModelUBM.verify(suspect,evidence,ubm);
+            handles.score = score;
+            display (score);
+            Table = Table.Table;
+            
+            if (score <  min(Table(:,1)))
+                prob = '100';
+                
+            elseif score > max(Table(:,1))
+                prob = '0';
+                
+            else
+                Rscore =  round(score*100);
+                Table = round(Table*100);
+                I = find (Table(:,1)== Rscore);
+                prob = num2str(100 -Table(I,3));
+            end
+            str = [prob,' %'];
+            set(handles.Result, 'String', str );
+            set(handles.Scoretext, 'String', score );
+        else
+            errordlg('Suspect File Name mismatch','File Error');
+        end
+    else
+        errordlg('Evidance File Name mismatch','File Error');
+    end
+else
+    errordlg('Case not found','File Error');
+end
+
+% catch ex
+%     errordlg('Select Evidance and Suspect Clips','File Error');
+% end
+
+
+
+% --- Executes on button press in Reportpushbutton.
+function Reportpushbutton_Callback(hObject, eventdata, handles)
+
+% --- Executes on selection change in popupmenu1.
+function popupmenu1_Callback(hObject, eventdata, handles)
+
+% --- Executes during object creation, after setting all properties.
+function popupmenu1_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on selection change in Evidance_popupmenu.
+function Evidance_popupmenu_Callback(hObject, eventdata, handles)
+[filename, pathname] = uigetfile( ...
+    {'*.wav', 'All WAV-Files (*.wav)'; ...
+    '*.*','All Files (*.*)'},'Select Evidance Clip', ...
+    handles.pathofcase);
+% If "Cancel" is selected then return
+if isequal([filename,pathname],[0,0])
+    return
+    % Otherwise construct the fullfilename and Check and load the file.
+else
+    File = fullfile(pathname,filename);
+    % if the MAT-file is not valid, do not save the name
+    if exist(File,'file') == 2;
+        [a b] = fileparts(filename);
+        handles.evidence_filename = b;
+        handles.evidence_path = File;
+    end
+    set(handles.Evidance_popupmenu, 'String', [pathname,filename]);
+end
+guidata(hObject, handles);
+
+
+
+% --- Executes during object creation, after setting all properties.
+function Evidance_popupmenu_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on selection change in Suspect_popupmenu.
+function Suspect_popupmenu_Callback(hObject, eventdata, handles)
+[filename, pathname] = uigetfile( ...
+    {'*.wav', 'All WAV-Files (*.wav)'; ...
+    '*.*','All Files (*.*)'}, ...
+    'Select Suspect Clip',handles.pathofcase);
+
+% If "Cancel" is selected then return
+if isequal([filename,pathname],[0,0])
+    return
+    % Otherwise construct the fullfilename and Check and load the file.
+else
+    File = fullfile(pathname,filename);
+    % if the MAT-file is not valid, do not save the name
+    if exist(File,'file') == 2
+        [a b] = fileparts(filename);
+        handles.suspect_filename = b;
+        handles.suspect_path = File;
+    end
+    set(handles.Suspect_popupmenu, 'String', File);
+end
+guidata(hObject, handles);
+
+
+% --- Executes during object creation, after setting all properties.
+function Suspect_popupmenu_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on selection change in folderlistbox.
+function folderlistbox_Callback(hObject, eventdata, handles)
+
+% --- Executes during object creation, after setting all properties.
+function folderlistbox_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in AddFilespushbutton.
+function AddFilespushbutton_Callback(hObject, eventdata, handles)
+
+pathofcase = handles.pathofcase;
+
+if(exist(pathofcase,'dir'))
+    index = get(handles.speakerlistbox,'Value');
+    folderlist = get(handles.speakerlistbox,'String');
+    foldername = folderlist{index};
+    path1 = [pathofcase,'\Option2_UBM\',foldername];
+    if(exist(path1,'dir'))
+        if (strcmp(path1,'')==0)
+            %Create the folder
+            index_selected = get(handles.folderlistbox,'Value');
+            file_list = get(handles.folderlistbox,'String');
+            filename = file_list{index_selected};
+            temp_path = [handles.pathname,'\',filename];
+            copyfile(temp_path,path1);
+            %open the folder
+            file_list_new = dir([path1, '\*.wav']);
+            [sorted_names,sorted_index] = sortrows({file_list_new.name}');
+            handles.file_names_new = sorted_names;
+            handles.sorted_index_new = sorted_index;
+            set(handles.Selectedfileslistbox,'String',handles.file_names_new,'Value',1);
+            set(handles.filecount,'String',[num2str(length(sorted_names)),' clips selected']);
+        else
+            errordlg('No files been Selected');
+        end
+    end
+else
+    errordlg('Case File Not Found. To create new case go to ''New case'' tab');
+end
+
+guidata(hObject, handles);
+
+
+
+% --- Executes on button press in CreateUBMpushbutton.
+function CreateUBMpushbutton_Callback(hObject, eventdata, handles)
+
+pathofcase  = handles.pathofcase;
+folder_path = ['H:\uni\FYP\Tool Final\local_db\',handles.case_number];
+             
+             if(exist(folder_path,'dir'))
+                 display('folder found');
+             else
+                 mkdir(folder_path);
+             end
+             
+if(exist(pathofcase,'dir'))
+    path1 = [pathofcase,'\Option2_UBM'];
+    
+    if(exist(path1,'dir'))
+        if (strcmp(path1,'')==0)
+            file_list = dir(path1);
+            len = length(file_list);
+              
+            if(len >= 4)
+                msgbox('Creating UBM');
+                details = handles.Detailsedit;
+                M = ModelUBM();
+                path = [handles.case_number,'\Option2_UBM'];
+               % ubm = M.makeUBM(2,path1); %% mixture size change
+                [c, duramodels] = scriptFunBuild(path,2,20,'gmm','mfcc');
+                 c = c.makeUBM(2)
+                [Table,eer] = scriptFunVerify(path,c);
+                H = HashStore();
+                result = H.save_ubm(handles.case_number,c.ubm,Table,eer,details);
+                
+                msgbox(result);
+            else
+                errordlg('Need at least 40 speakers...');
+            end
+        end
+    else
+        errordlg('UBM folder Not Found. Add files to create UBM');
+    end
+else
+    errordlg('Case File Not Found. To create new case go to ''New case'' tab');
+end
+
+
+function Selectedfileslistbox_Callback(hObject, eventdata, handles)
+
+
+% --- Executes during object creation, after setting all properties.
+function Selectedfileslistbox_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+function casenumberedit_Callback(hObject, eventdata, handles)
+
+% --- Executes during object creation, after setting all properties.
+function casenumberedit_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in Loadpushbutton.
+function Loadpushbutton_Callback(hObject, eventdata, handles)
+
+case_number = get(handles.casenumberedit,'String');
+path = 'C:\Forensic_Audio_workspace\cases\';
+pathofcase  = [path,case_number];
+handles.case_number =case_number;
+handles.pathofcase = pathofcase;
+guidata(hObject, handles);
+
+if( strcmp(get(handles.casenumberedit,'String'),'')==0)
+    if(exist(pathofcase,'dir'))
+        display('folder found');
+        msgbox('Case Found.');
+        path1 = [pathofcase,'\Suspects\Option2'];
+        path2 = [pathofcase,'\Option2_UBM'];
+        if(exist(path1,'dir'))
+            set(handles.Evidance_popupmenu,  'Enable', 'on' );
+            set(handles.Suspect_popupmenu,  'Enable', 'on' );
+            set(handles.Verifypushbutton,  'Enable', 'on' );
+            set(handles.Reportpushbutton,  'Enable', 'on');
+            set(handles.Selectfiles,  'Enable', 'on');
+            set(handles.CreateUBMpushbutton,  'Enable', 'on');
+            set(handles.AddFilespushbutton,  'Enable', 'on');
+            set(handles.Removepushbutton,  'Enable', 'on');
+            set(handles.Addallpushbutton,  'Enable', 'on');
+            set(handles.RemoveAllpushbutton,  'Enable', 'on');
+            
+            set(handles.Evidance_popupmenu, 'String', handles.pathofcase);
+            set(handles.Suspect_popupmenu, 'String', handles.pathofcase);
+            
+            set(handles.Selectedfileslistbox,'String','Selected files','Value',1);
+            set(handles.filecount,'String','No clips selected');
+            
+            
+            %open UBM folder
+            if(length(dir(path2))>=3)
+                set(handles.Numberofspeakers,'String',[num2str(length(dir(path2)) - 2),' speakers added']);
+                file_list = dir(path2);
+                [sorted_names,sorted_index] = sortrows({file_list.name}');
+                for i=3:length(sorted_names)
+                    names(i-2) = sorted_names(i);
+                end
+                set(handles.speakerlistbox,'String',names,'Value',1);
+            end
+            
+            guidata(hObject, handles);
+            
+        else
+            errordlg('Suspects clips not founds for this Option..Go to add new suspects');
+        end
+    else
+        errordlg('Case File Not Found. To create new case go to ''New case'' tab');
+    end
+else
+    errordlg('Enter Case Number');
+end
+
+
+
+% --- Executes on button press in Removepushbutton.
+function Removepushbutton_Callback(hObject, eventdata, handles)
+
+pathofcase  = handles.pathofcase;
+
+if(exist(pathofcase,'dir'))
+    
+    index = get(handles.speakerlistbox,'Value');
+    folderlist = get(handles.speakerlistbox,'String');
+    foldername = folderlist{index};
+    path1 = [pathofcase,'\Option2_UBM\',foldername];
+    index_selected = get(handles.Selectedfileslistbox,'Value');
+    file_list = get(handles.Selectedfileslistbox,'String');
+    if(exist(path1,'dir'))
+        if (isempty(file_list))
+            set(handles.Selectedfileslistbox,'String','Selected files','Value',1);
+            set(handles.filecount,'String','No clips selected');
+            errordlg('No files been Selected');
+        else
+            %Create the folder
+            filename = file_list{index_selected};
+            temp_path = [path1,'\',filename];
+            delete(temp_path);
+            %open the folder
+            file_list_new = dir([path1, '\*.wav']);
+            [sorted_names,sorted_index] = sortrows({file_list_new.name}');
+            set(handles.Selectedfileslistbox,'String',sorted_names,'Value',1);
+            set(handles.filecount,'String',[num2str(length(sorted_names)),' clips selected']);
+        end
+        
+    else
+        errordlg('No files been Selected');
+    end
+else
+    errordlg('Case File Not Found. To create new case go to ''New case'' tab');
+end
+
+
+% --- Executes on button press in Addallpushbutton.
+function Addallpushbutton_Callback(hObject, eventdata, handles)
+
+pathofcase = handles.pathofcase;
+
+if(exist(pathofcase,'dir'))
+    index = get(handles.speakerlistbox,'Value');
+    folderlist = get(handles.speakerlistbox,'String');
+    foldername = folderlist{index};
+    path1 = [pathofcase,'\Option2_UBM\',foldername];
+    if(exist(path1,'dir'))
+        if (strcmp(handles.pathname,'')==0)
+            %Create the folder
+            file_list = get(handles.folderlistbox,'String');
+            for i =1:length(file_list)
+                filename = file_list{i};
+                temp_path = [handles.pathname,'\',filename];
+                copyfile(temp_path,path1);
+            end
+            %open the folder
+            file_list_new = dir([path1, '\*.wav']);
+            [sorted_names,sorted_index] = sortrows({file_list_new.name}');
+            handles.file_names_new = sorted_names;
+            handles.sorted_index_new = sorted_index;
+            set(handles.Selectedfileslistbox,'String',handles.file_names_new,'Value',1);
+            set(handles.filecount,'String',[num2str(length(sorted_names)),' clips selected']);
+        else
+            errordlg('No files been Selected');
+        end
+        
+    else
+        errordlg('No Folder been Selected');
+    end
+else
+    errordlg('Case File Not Found. To create new case go to ''New case'' tab');
+end
+
+
+% --- Executes on button press in RemoveAllpushbutton.
+function RemoveAllpushbutton_Callback(hObject, eventdata, handles)
+
+pathofcase  = handles.pathofcase;
+
+if(exist(pathofcase,'dir'))
+    
+    index = get(handles.speakerlistbox,'Value');
+    folderlist = get(handles.speakerlistbox,'String');
+    foldername = folderlist{index};
+    path1 = [pathofcase,'\Option2_UBM\',foldername];
+    
+    file_list = get(handles.Selectedfileslistbox,'String');
+    if(exist(path1,'dir'))
+        if (isempty(file_list))
+            set(handles.Selectedfileslistbox,'String','Selected files','Value',1);
+            set(handles.filecount,'String','No clips selected');
+            errordlg('No files been Selected');
+        else
+            for i =1:length(file_list)
+                filename = file_list{i};
+                temp_path = [path1,'\',filename];
+                delete(temp_path);
+            end
+            %open the folder
+            file_list_new = dir([path1, '\*.wav']);
+            [sorted_names,sorted_index] = sortrows({file_list_new.name}');
+            set(handles.Selectedfileslistbox,'String',sorted_names,'Value',1);
+            set(handles.filecount,'String',[length(sorted_names),' clips selected']);
+        end
+    else
+       errordlg('Speaker name not exist'); 
+    end
+else
+    errordlg('Case File Not Found. To create new case go to ''New case'' tab');
+end
+
+
+
+function Detailsedit_Callback(hObject, eventdata, handles)
+
+% --- Executes during object creation, after setting all properties.
+function Detailsedit_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function Speakername_Callback(hObject, eventdata, handles)
+
+
+% --- Executes during object creation, after setting all properties.
+function Speakername_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in AddSpeaker.
+function AddSpeaker_Callback(hObject, eventdata, handles)
+
+pathofcase  = handles.pathofcase;
+
+if(exist(pathofcase,'dir'))
+    path1 = [pathofcase,'\Option2_UBM'];
+    path2 = [path1,'\',get(handles.Speakername,'String')];
+    if(exist(path2,'dir'))
+        msgbox('This speaker is already Entered');
+    else
+        mkdir(path2);
+        if(length(dir(path1))>=3)
+            set(handles.Numberofspeakers,'String',[num2str(length(dir(path1)) - 2),' speakers added']);
+            file_list = dir(path1);
+            [sorted_names,sorted_index] = sortrows({file_list.name}');
+            for i=3:length(sorted_names)
+                names(i-2) = sorted_names(i);
+            end
+            set(handles.speakerlistbox,'String',names,'Value',1);
+        end
+
+    end
+else
+    
+    errordlg('Case File Not Found. To create new case go to ''New case'' tab');
+end
+
+
+
+
+% --- Executes on button press in Selectfiles.
+function Selectfiles_Callback(hObject, eventdata, handles)
+
+folder_name = uigetdir('Select Audio Clips');
+% If "Cancel" is selected then return
+handles.pathname = folder_name;
+file_list = dir([folder_name, '\*.wav']);
+[sorted_names,sorted_index] = sortrows({file_list.name}');
+handles.file_names = sorted_names;
+handles.is_dir = [file_list.isdir];
+handles.sorted_index = sorted_index;
+set(handles.folderlistbox,'String',handles.file_names,'Value',1);
+
+guidata(hObject, handles);
+
+
+% --- Executes on selection change in speakerlistbox.
+function speakerlistbox_Callback(hObject, eventdata, handles)
+
+pathofcase  = handles.pathofcase;
+index = get(handles.speakerlistbox,'Value');
+folderlist = get(handles.speakerlistbox,'String');
+foldername = folderlist{index};
+path1 = [pathofcase,'\Option2_UBM\',foldername];
+file_list = dir([path1, '\*.wav']);
+[sorted_names,sorted_index] = sortrows({file_list.name}');
+set(handles.Selectedfileslistbox,'String',sorted_names,'Value',1);
+set(handles.filecount,'String',[num2str(length(sorted_names)),' clips selected']);
+            
+            
+% --- Executes during object creation, after setting all properties.
+function speakerlistbox_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to speakerlistbox (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: listbox controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+% --- Executes on button press in Reset.
+function Reset_Callback(hObject, eventdata, handles)
+
+close(handles.figure1);
+option2;
+
+
+% --- Executes on button press in DeleteSpeakerpushbutton.
+function DeleteSpeakerpushbutton_Callback(hObject, eventdata, handles)
+% hObject    handle to DeleteSpeakerpushbutton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+pathofcase  = handles.pathofcase;
+
+if(exist(pathofcase,'dir'))
+    
+    index = get(handles.speakerlistbox,'Value');
+    folderlist = get(handles.speakerlistbox,'String');
+    foldername = folderlist{index};
+    path = [pathofcase,'\Option2_UBM'];
+    path1 = [path,'\',foldername];
+    
+    if(exist(path1,'dir'))
+        rmdir(path1);
+        length(dir(path))
+        if(length(dir(path))>=3)
+            set(handles.Numberofspeakers,'String',[num2str(length(dir(path)) - 2),' speakers added']);
+            file_list = dir(path);
+            [sorted_names,sorted_index] = sortrows({file_list.name}');
+            for i=3:length(sorted_names)
+                names(i-2) = sorted_names(i);
+            end
+            set(handles.speakerlistbox,'String',names,'Value',1);
+        else
+            set(handles.speakerlistbox,'String','Select Folder','Value',1);
+            set(handles.Numberofspeakers,'String','No speakers added');
+        end
+    else
+        errordlg('No Folder been Selected');
+    end
+else
+    errordlg('Case File Not Found. To create new case go to ''New case'' tab');
+end
+
+

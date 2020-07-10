@@ -1,0 +1,26 @@
+function [c, duramodels] = scriptFunBuild(db_name,comps,dimns,dbtype,featureType)
+
+ db_Path = [Utils.DB_FOLDER '\' db_name];
+ db_name = [db_name  '_' dbtype '_c' num2str(comps) '_d' num2str(dimns)];
+c = ModelStore([pwd '\local_db\' db_name '.mat'], db_Path, comps, dimns, dbtype,featureType);
+Folders = dir((db_Path));
+
+tStart=tic;
+for i=1:length(Folders)
+    if (Folders(i).isdir && ~strcmp(Folders(i).name, '.')&& ~strcmp(Folders(i).name, '..'))
+        FolderPath  = [db_Path, '\', Folders(i).name];
+        files = dir([FolderPath, '\*.wav']);
+        [~,name] = fileparts(FolderPath);
+        disp(['adding ' FolderPath]);
+        
+        for j=1:size(files,1)
+            temp = files;
+            temp(j) = [];
+            c.add_model(temp,FolderPath,name,'sub');
+        end
+        c.add_model(files,FolderPath,name,'all');
+    end
+end
+c.saveDB();
+duramodels=toc(tStart);
+end
